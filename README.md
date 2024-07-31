@@ -103,7 +103,6 @@ func pruneExpiredNonces() {
 - **Audit and Monitoring**: Establishing mechanisms for auditing nonce usage and monitoring for abnormal patterns that may indicate security issues.
 
 This document serves as a reference for the current design and implementation of the secure nonce management system, providing a foundation for future development and enhancements.
-```
 
 ## LibCrypto =  Enhanced NetworkAddress with Anonymized Geographic Locations
 

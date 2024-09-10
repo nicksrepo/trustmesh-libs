@@ -13,6 +13,7 @@ func main() {
 	// Step 1: Define Latitude and Longitude
 
 		lat := 37.8199
+		
 		lon := -122.4783
 
 		// Step 2: Initialize NetworkAddress

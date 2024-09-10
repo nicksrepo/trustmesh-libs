@@ -3,13 +3,14 @@ package libcrypto
 import (
 	"libzk13"
 
-		"encoding/base64"
-		"fmt"
-		"github.com/goccy/go-json"
-		"go.dedis.ch/kyber/v3"
-		"go.dedis.ch/kyber/v3/group/edwards25519"
-		"go.dedis.ch/kyber/v3/util/random"
-		"math/big"
+	"encoding/base64"
+	"fmt"
+	"math/big"
+
+	"github.com/goccy/go-json"
+	"go.dedis.ch/kyber/v3"
+	"go.dedis.ch/kyber/v3/group/edwards25519"
+	"go.dedis.ch/kyber/v3/util/random"
 )
 
 // SafeLatitudeLongitude represents an anonymized geographical location.
@@ -52,12 +53,18 @@ func NewNetworkAddress(lat, lon float64) (*NetworkAddress, error) {
 	}
 
 	precision, err := GetDynamicPrecision()
+	if err != nil {
+		return nil, fmt.Errorf("error getting dynamic precision: %v", err)
+	}
 	anonGeoLocation, err := ConvertToPrecisionGrid(lat, lon, precision)
 	if err != nil {
 		return nil, fmt.Errorf("error converting to precision grid: %v", err)
 	}
 
 	anonGeoBytes, err := anonGeoLocation.Bytes()
+	if err != nil {
+		return nil, fmt.Errorf("error converting anon geo location to bytes: %v", err)
+	}
 	_, locationCommitment, err := CommitLocation(privateKey, anonGeoBytes)
 	if err != nil {
 		return nil, fmt.Errorf("error creating location commitment: %v", err)
@@ -76,12 +83,12 @@ func NewNetworkAddress(lat, lon float64) (*NetworkAddress, error) {
 
 // GenerateZKP generates a Zero-Knowledge Proof for the NetworkAddress.
 func (na *NetworkAddress) GenerateZKP(bits int) error {
-	if na.AnonGeoLocation == nil || len(na.AnonGeoLocation) == 0 {
+	if len(na.AnonGeoLocation) == 0 {
 		return fmt.Errorf("AnonGeoLocation is empty. Cannot generate ZKP")
 	}
 
 	secretBaggage := fmt.Sprintf("%v", na.AnonGeoLocation)
-	na.ZKP = libzk13.NewZK13(secretBaggage, bits)
+	na.ZKP, _ = libzk13.NewZK13(secretBaggage, bits)
 	r, P := na.ZKP.Prover() // Assume Prover method exists and returns big.Int values
 	na.r = r
 	na.P = P
@@ -106,6 +113,7 @@ func GenerateAddress(lat, lon float64, bits int) (*AddressInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize public key: %v", err)
 	}
+	pubKey := base64.RawStdEncoding.EncodeToString(publicKeyStr)
 	locationCommitmentStr, err := na.LocationCommitment.MarshalBinary()
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize location commitment: %v", err)
@@ -113,7 +121,7 @@ func GenerateAddress(lat, lon float64, bits int) (*AddressInfo, error) {
 	zkpProofStr := fmt.Sprintf("%s|%s", na.r.Text(16), na.P.Text(16))
 
 	addressInfo := &AddressInfo{
-		PublicKey:          string(publicKeyStr),
+		PublicKey:          pubKey,
 		LocationCommitment: string(locationCommitmentStr),
 		ZKPProof:           zkpProofStr,
 	}
@@ -138,28 +146,43 @@ func (na *NetworkAddress) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON customizes the JSON unmarshaling for NetworkAddress.
 func (na *NetworkAddress) UnmarshalJSON(data []byte) error {
-	// Temporary struct to extract LocationCommitment as a base64-encoded string
+	// Temporary struct to extract all fields
 	temp := struct {
-		LocationCommitment string `json:"locationCommitment"`
+		AnonGeoLocation    SafeLatitudeLongitude `json:"anonGeoLocation"`
+		LocationCommitment string                `json:"locationCommitment"`
+		PublicKey          string                `json:"public_key"`
 	}{}
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return fmt.Errorf("failed to unmarshal NetworkAddress: %v", err)
 	}
 
-	// Decode the base64-encoded LocationCommitment string to a byte slice
+	// Initialize the Suite if it's not already set
+	if na.Suite == nil {
+		na.Suite = edwards25519.NewBlakeSHA256Ed25519()
+	}
+
+	// Decode and set LocationCommitment
 	commitmentBytes, err := base64.StdEncoding.DecodeString(temp.LocationCommitment)
 	if err != nil {
 		return fmt.Errorf("failed to decode LocationCommitment from base64: %v", err)
 	}
-
-	// Convert bytes back to kyber.Point for LocationCommitment
-	commitment := na.Suite.Point() // Ensure the suite is properly initialized
-	if err := commitment.UnmarshalBinary(commitmentBytes); err != nil {
+	na.LocationCommitment = na.Suite.Point()
+	if err := na.LocationCommitment.UnmarshalBinary(commitmentBytes); err != nil {
 		return fmt.Errorf("failed to unmarshal LocationCommitment to kyber.Point: %v", err)
 	}
-	na.LocationCommitment = commitment
 
-	// Unmarshal the rest of the struct as usual
-	// You might need to handle other fields similarly, especially if they use kyber types
+	// Decode and set PublicKey
+	publicKeyBytes, err := base64.StdEncoding.DecodeString(temp.PublicKey)
+	if err != nil {
+		return fmt.Errorf("failed to decode PublicKey from base64: %v", err)
+	}
+	na.PublicKey = na.Suite.Point()
+	if err := na.PublicKey.UnmarshalBinary(publicKeyBytes); err != nil {
+		return fmt.Errorf("failed to unmarshal PublicKey to kyber.Point: %v", err)
+	}
+
+	// Set AnonGeoLocation
+	na.AnonGeoLocation = temp.AnonGeoLocation
+
 	return nil
 }

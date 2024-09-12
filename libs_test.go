@@ -2,6 +2,7 @@ package main
 
 import (
 	"libcrypto"
+	"libzk13"
 	"testing"
 
 	"github.com/kortschak/utter"
@@ -27,6 +28,12 @@ func TestNetworkAddressZKP(t *testing.T) {
 			}
 			s := utter.Sdump(address)
 			t.Log(s)
+			_, err = libzk13.NewZK13(address.ZKPProof, 256)
+			if err != nil {
+				t.Fatalf("failed to generate new zk13: %v", err)
+			}
+
+			//r, p := zkp.Prover()
 
 			/*err = libzk13.NewVerifier()
 			if err != nil {

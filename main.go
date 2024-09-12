@@ -1,28 +1,28 @@
 package main
 
 import (
-	 "libcrypto"
-		"encoding/hex"
-		"fmt"
-		"github.com/davecgh/go-spew/spew"
-		"log"
+	"encoding/hex"
+	"fmt"
+	"libcrypto"
+	"log"
+
+	"github.com/kortschak/utter"
 )
 
 func main() {
 
 	// Step 1: Define Latitude and Longitude
 
-		lat := 37.8199
-		
-		lon := -122.4783
+	lat := 37.8199
 
-		// Step 2: Initialize NetworkAddress
-		address, _ := libcrypto.GenerateAddress(lat, lon, 256)
+	lon := -122.4783
 
-		fmt.Println("Successfully generated a valid NetworkAddress with ZKP.")
+	// Step 2: Initialize NetworkAddress
+	address, _ := libcrypto.GenerateAddress(lat, lon, 256)
 
-		spew.Dump(address)
-		log.Println(hex.EncodeToString([]byte(address.PublicKey)))
+	fmt.Println("Successfully generated a valid NetworkAddress with ZKP.")
 
+	utter.Dump(address)
+	log.Println(hex.EncodeToString([]byte(address.PublicKey)))
 
 }

@@ -10,7 +10,7 @@ import (
 	"go.dedis.ch/kyber/v3"
 )
 
-const GENERATOR = 7
+const GENERATOR = 21 ^ 18<<1
 
 type ZK13 struct {
 	p, g, Hs *big.Int
